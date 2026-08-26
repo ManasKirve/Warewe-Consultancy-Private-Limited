@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import threading
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from dotenv import load_dotenv
 
@@ -41,14 +42,29 @@ def start():
     if not goal:
         return jsonify({"error": "Goal is required."}), 400
     thread_id = str(uuid.uuid4())
+
+    def _run():
+        try:
+            from agent import start_agent
+            start_agent(goal, mode, thread_id)
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    return jsonify({"status": "started", "thread_id": thread_id})
+
+
+@app.route("/api/status/<thread_id>")
+def api_status(thread_id):
     try:
-        from agent import start_agent
-        state = start_agent(goal, mode, thread_id)
-        if state.get("is_finished"):
+        from agent import get_state
+        state = get_state(thread_id)
+        if state["is_finished"]:
             return jsonify({"status": "finished", "thread_id": thread_id})
-        return jsonify({"status": "review", "thread_id": thread_id})
-    except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
+        return jsonify({"status": "running", "thread_id": thread_id})
+    except Exception:
+        return jsonify({"status": "running", "thread_id": thread_id})
 
 
 @app.route("/approve/<thread_id>", methods=["POST"])

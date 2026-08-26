@@ -101,22 +101,25 @@
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                hideLoading();
-                btn.disabled = false;
-                btn.textContent = "Run Agent \u2192";
-                if (data.status === "finished" || data.status === "review") {
-                    window.location.href = "/status/" + data.thread_id;
+                if (data.status === "started" && data.thread_id) {
+                    pollForResults(data.thread_id);
                 } else if (data.error) {
+                    hideLoading();
+                    btn.disabled = false;
+                    btn.textContent = "Run Agent \u2192";
                     showError(data.error);
                 } else {
-                    showError("The agent finished but returned an unexpected response.");
+                    hideLoading();
+                    btn.disabled = false;
+                    btn.textContent = "Run Agent \u2192";
+                    showError("Unexpected response from server.");
                 }
             })
             .catch(function() {
                 hideLoading();
                 btn.disabled = false;
                 btn.textContent = "Run Agent \u2192";
-                showError("The request timed out or the server is unavailable. The agent may still be running \u2014 try again in a moment.");
+                showError("Could not reach the server. Check that it's running and try again.");
             });
         });
 
@@ -202,6 +205,29 @@
             overlay.addEventListener("click", function(e) {
                 if (e.target === overlay) overlay.remove();
             });
+        }
+
+        function pollForResults(threadId) {
+            var pollCount = 0;
+            var poll = setInterval(function() {
+                pollCount++;
+                fetch("/api/status/" + threadId)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.status === "finished") {
+                        clearInterval(poll);
+                        window.location.href = "/status/" + threadId;
+                    }
+                })
+                .catch(function() {});
+                if (pollCount > 120) {
+                    clearInterval(poll);
+                    hideLoading();
+                    document.getElementById("run-btn").disabled = false;
+                    document.getElementById("run-btn").textContent = "Run Agent \u2192";
+                    showError("The agent is taking longer than expected. Try refreshing in a moment.");
+                }
+            }, 5000);
         }
     </script>
 </body>
