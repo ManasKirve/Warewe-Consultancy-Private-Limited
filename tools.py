@@ -1,12 +1,10 @@
 import os
 import re
 import datetime
-from langchain_core.tools import tool
-from langchain_groq import ChatGroq
-from duckduckgo_search import DDGS
 
 
 def get_llm(temperature: float = 0.4):
+    from langchain_groq import ChatGroq
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         raise RuntimeError("GROQ_API_KEY is not set. Add it to your .env file.")
@@ -14,9 +12,8 @@ def get_llm(temperature: float = 0.4):
     return ChatGroq(model=model_name, temperature=temperature, api_key=api_key)
 
 
-@tool
 def search_ai_news(query: str, max_results: int = 10) -> list:
-    """Search the web for recent AI agent news articles and return title, snippet and url for each result."""
+    from duckduckgo_search import DDGS
     results = []
     try:
         with DDGS() as ddgs:
@@ -35,9 +32,7 @@ def search_ai_news(query: str, max_results: int = 10) -> list:
     return results
 
 
-@tool
 def summarize_articles(articles_text: str) -> str:
-    """Summarize a block of article text into a concise numbered list of 2-3 sentence summaries."""
     llm = get_llm()
     prompt = (
         "Summarize each article below in 2-3 sentences. Keep the title and url for each. "
@@ -46,9 +41,7 @@ def summarize_articles(articles_text: str) -> str:
     return llm.invoke(prompt).content
 
 
-@tool
 def generate_newsletter_html(summary_text: str) -> str:
-    """Turn article summaries into a clean HTML newsletter with a subject line."""
     llm = get_llm()
     prompt = (
         "Write a clean, engaging weekly newsletter about the latest AI agent news, "

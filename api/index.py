@@ -3,6 +3,4 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import app
-
-handler = app
+from app import app as app
