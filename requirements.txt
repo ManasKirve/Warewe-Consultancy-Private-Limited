@@ -1,4 +1,5 @@
 flask
+gunicorn
 langgraph
 langchain-core
 langchain-groq
