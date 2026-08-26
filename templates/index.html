@@ -34,7 +34,7 @@
                 <h1>Give it a goal.</h1>
                 <p class="lede">Set a goal. The agent handles planning, research, writing, critique, and delivery — end to end.</p>
 
-                <form action="/run" method="post">
+                <form action="/run" method="post" id="agent-form">
                     <div class="sheet">
                         <label class="field-label" for="goal">Goal</label>
                         <textarea id="goal" name="goal" rows="3">Create a weekly newsletter on latest AI agent news and send it to our subscribers.</textarea>
@@ -105,7 +105,7 @@
                 btn.disabled = false;
                 btn.textContent = "Run Agent \u2192";
                 if (data.status === "finished" || data.status === "review") {
-                    window.location.href = "/run";
+                    window.location.href = "/status/" + data.thread_id;
                 } else if (data.error) {
                     showError(data.error);
                 } else {

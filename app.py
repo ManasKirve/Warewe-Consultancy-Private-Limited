@@ -63,7 +63,14 @@ def approve(thread_id):
 
 @app.route("/status/<thread_id>")
 def status(thread_id):
-    return redirect(url_for("index"))
+    try:
+        from agent import get_state
+        state = get_state(thread_id)
+        if state["is_finished"]:
+            return render_template("result.html", state=state, thread_id=thread_id)
+        return render_template("review.html", state=state, thread_id=thread_id)
+    except Exception:
+        return redirect(url_for("index"))
 
 
 @app.errorhandler(500)
