@@ -62,9 +62,10 @@ def split_subject_body(text: str):
 
 
 def save_newsletter(subject: str, body: str) -> str:
-    os.makedirs("output", exist_ok=True)
+    output_dir = os.path.join("/tmp", "output")
+    os.makedirs(output_dir, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = os.path.join("output", f"newsletter_{timestamp}.html")
+    filename = os.path.join(output_dir, f"newsletter_{timestamp}.html")
     if "<title>" not in body.lower():
         body = f"<title>{subject}</title>\n{body}"
     with open(filename, "w", encoding="utf-8") as f:
