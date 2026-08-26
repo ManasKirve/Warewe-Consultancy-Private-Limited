@@ -62,6 +62,8 @@ def api_status(thread_id):
         state = get_state(thread_id)
         if state["is_finished"]:
             return jsonify({"status": "finished", "thread_id": thread_id})
+        if state.get("final_output"):
+            return jsonify({"status": "review", "thread_id": thread_id})
         return jsonify({"status": "running", "thread_id": thread_id})
     except Exception:
         return jsonify({"status": "running", "thread_id": thread_id})
