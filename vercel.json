@@ -8,13 +8,8 @@
     ],
     "routes": [
         {
-            "src": "/static/(.*)",
-            "dest": "/static/$1"
-        },
-        {
             "src": "/(.*)",
-            "dest": "/api/index.py",
-            "methods": ["GET", "POST"]
+            "dest": "/api/index.py"
         }
     ]
 }
