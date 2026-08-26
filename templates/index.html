@@ -55,7 +55,7 @@
                         </label>
                     </div>
 
-                    <button type="submit">Run Agent &rarr;</button>
+                    <button type="submit" id="run-btn">Run Agent &rarr;</button>
                 </form>
             </main>
         </div>
@@ -65,6 +65,152 @@
         function selectMode(onId, offId) {
             document.getElementById(onId).classList.add('selected');
             document.getElementById(offId).classList.remove('selected');
+        }
+
+        const QUOTES = [
+            "The agent is breaking your goal into actionable steps...",
+            "Researching the latest developments across the web...",
+            "Synthesizing findings into a cohesive summary...",
+            "Drafting your newsletter with precision...",
+            "Running self-critique for quality and accuracy...",
+            "Revising and polishing the final output...",
+            "Almost there — preparing the final deliverable...",
+        ];
+
+        const STEPS = ["Plan", "Research", "Summarize", "Write", "Critique", "Revise", "Send"];
+
+        document.getElementById("run-btn").addEventListener("click", function(e) {
+            e.preventDefault();
+            var btn = this;
+            btn.disabled = true;
+            btn.textContent = "Starting...";
+
+            var goal = document.getElementById("goal").value;
+            var mode = document.querySelector('input[name="mode"]:checked').value;
+
+            fetch("/start", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({goal: goal, mode: mode})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) {
+                    showError(data.error);
+                    btn.disabled = false;
+                    btn.textContent = "Run Agent \u2192";
+                    return;
+                }
+                showLoading(data.thread_id);
+            })
+            .catch(function() {
+                showError("Failed to connect to the server. Please try again.");
+                btn.disabled = false;
+                btn.textContent = "Run Agent \u2192";
+            });
+        });
+
+        function showLoading(threadId) {
+            var overlay = document.createElement("div");
+            overlay.className = "loading-overlay";
+            overlay.innerHTML = '<div class="loading-card">' +
+                '<div class="loading-spinner">' +
+                    '<div class="ring"></div>' +
+                    '<div class="ring"></div>' +
+                    '<div class="ring"></div>' +
+                    '<div class="center-dot"></div>' +
+                '</div>' +
+                '<div class="loading-title">Agent Running</div>' +
+                '<div class="loading-subtitle">This may take a few minutes. Hang tight.</div>' +
+                '<div class="loading-progress" id="load-steps">' +
+                    STEPS.map(function(s, i) {
+                        return '<div class="progress-step' + (i === 0 ? " active" : "") + '" data-idx="' + i + '">' +
+                            '<span class="step-icon">' + (i === 0 ? "\u25cf" : "\u25cb") + '</span>' +
+                            '<span>' + String(i + 1).padStart(2, "0") + " " + s + '</span>' +
+                        '</div>';
+                    }).join("") +
+                '</div>' +
+                '<div class="loading-quote" id="load-quote">' + QUOTES[0] + '</div>' +
+            '</div>';
+            document.body.appendChild(overlay);
+
+            var currentStep = 0;
+            var quoteIdx = 0;
+
+            var stepTimer = setInterval(function() {
+                currentStep++;
+                if (currentStep >= STEPS.length) {
+                    clearInterval(stepTimer);
+                    return;
+                }
+                var el = overlay.querySelector('.progress-step[data-idx="' + currentStep + '"]');
+                if (el) {
+                    var prev = overlay.querySelector('.progress-step[data-idx="' + (currentStep - 1) + '"]');
+                    if (prev) {
+                        prev.classList.remove("active");
+                        prev.classList.add("done");
+                        prev.querySelector(".step-icon").textContent = "\u2713";
+                    }
+                    el.classList.add("active");
+                    el.querySelector(".step-icon").textContent = "\u25cf";
+                }
+            }, 5000);
+
+            var quoteTimer = setInterval(function() {
+                quoteIdx = (quoteIdx + 1) % QUOTES.length;
+                var q = document.getElementById("load-quote");
+                if (q) q.textContent = QUOTES[quoteIdx];
+            }, 4000);
+
+            pollStatus(threadId, overlay, stepTimer, quoteTimer);
+        }
+
+        function pollStatus(threadId, overlay, stepTimer, quoteTimer) {
+            fetch("/status/" + threadId + "?json=1")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === "finished") {
+                    clearInterval(stepTimer);
+                    clearInterval(quoteTimer);
+                    window.location.href = "/status/" + threadId;
+                } else if (data.status === "error") {
+                    clearInterval(stepTimer);
+                    clearInterval(quoteTimer);
+                    overlay.remove();
+                    showError(data.error || "The agent encountered an error. Please try again.");
+                    var btn = document.getElementById("run-btn");
+                    if (btn) { btn.disabled = false; btn.textContent = "Run Agent \u2192"; }
+                } else {
+                    setTimeout(function() {
+                        pollStatus(threadId, overlay, stepTimer, quoteTimer);
+                    }, 2000);
+                }
+            })
+            .catch(function() {
+                setTimeout(function() {
+                    pollStatus(threadId, overlay, stepTimer, quoteTimer);
+                }, 3000);
+            });
+        }
+
+        function showError(msg) {
+            var overlay = document.createElement("div");
+            overlay.className = "loading-overlay";
+            overlay.innerHTML = '<div class="loading-card error-card">' +
+                '<div class="loading-spinner">' +
+                    '<div class="ring"></div>' +
+                    '<div class="ring"></div>' +
+                    '<div class="ring"></div>' +
+                    '<div class="center-dot"></div>' +
+                '</div>' +
+                '<div class="loading-title">Something went wrong</div>' +
+                '<div class="loading-subtitle">' + msg + '</div>' +
+                '<button class="secondary" onclick="this.closest(\'.loading-overlay\').remove()" style="margin-top:16px">Close</button>' +
+            '</div>';
+            document.body.appendChild(overlay);
+            overlay.addEventListener("click", function(e) {
+                if (e.target === overlay) overlay.remove();
+            });
         }
     </script>
 </body>
