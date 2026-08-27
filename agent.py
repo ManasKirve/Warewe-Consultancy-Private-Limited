@@ -1,5 +1,8 @@
 from typing import TypedDict, List
 import os
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class AgentState(TypedDict):
@@ -119,6 +122,7 @@ def start_agent(goal: str, mode: str, thread_id: str) -> dict:
         "mode": mode,
         "sent": False,
     }
+    log.info("start_agent thread=%s mode=%s", thread_id, mode)
     graph.invoke(initial_state, config)
     if mode == "autonomous":
         graph.invoke(None, config)
@@ -128,6 +132,14 @@ def start_agent(goal: str, mode: str, thread_id: str) -> dict:
 def approve_and_send(thread_id: str) -> dict:
     graph = _get_graph()
     config = {"configurable": {"thread_id": thread_id}}
+    try:
+        snapshot = graph.get_state(config)
+        log.info("approve_and_send thread=%s next=%s values_keys=%s", thread_id, snapshot.next, list(snapshot.values.keys()) if snapshot.values else None)
+        if not snapshot.next:
+            log.warning("approve_and_send thread=%s: graph already finished, nothing to resume", thread_id)
+            return get_state(thread_id)
+    except Exception:
+        log.exception("approve_and_send thread=%s: get_state failed", thread_id)
     graph.invoke(None, config)
     return get_state(thread_id)
 

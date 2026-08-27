@@ -2,10 +2,14 @@ import os
 import json
 import uuid
 import threading
+import logging
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from dotenv import load_dotenv
 
 load_dotenv()
+
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
 app = Flask(__name__)
 
@@ -31,6 +35,7 @@ def run():
             return render_template("result.html", state=state, thread_id=thread_id)
         return render_template("review.html", state=state, thread_id=thread_id)
     except Exception as e:
+        log.exception("run failed for thread_id=%s", thread_id)
         return render_template("index.html"), 500
 
 
@@ -48,7 +53,7 @@ def start():
             from agent import start_agent
             start_agent(goal, mode, thread_id)
         except Exception:
-            pass
+            log.exception("background agent failed for thread_id=%s", thread_id)
 
     t = threading.Thread(target=_run, daemon=True)
     t.start()
@@ -64,6 +69,8 @@ def api_status(thread_id):
             return jsonify({"status": "finished", "thread_id": thread_id})
         if state.get("final_output"):
             return jsonify({"status": "review", "thread_id": thread_id})
+        if state.get("goal"):
+            return jsonify({"status": "running", "thread_id": thread_id})
         return jsonify({"status": "running", "thread_id": thread_id})
     except Exception:
         return jsonify({"status": "running", "thread_id": thread_id})
@@ -75,8 +82,14 @@ def approve(thread_id):
         from agent import approve_and_send
         state = approve_and_send(thread_id)
         return render_template("result.html", state=state, thread_id=thread_id)
-    except Exception:
-        return redirect(url_for("index"))
+    except Exception as e:
+        log.exception("approve failed for thread_id=%s", thread_id)
+        try:
+            from agent import get_state
+            state = get_state(thread_id)
+            return render_template("review.html", state=state, thread_id=thread_id)
+        except Exception:
+            return redirect(url_for("index"))
 
 
 @app.route("/status/<thread_id>")
